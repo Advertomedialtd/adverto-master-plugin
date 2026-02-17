@@ -123,27 +123,30 @@ error_log('Side Tab Items from DB: ' . print_r($items, true));
                         </div>
                     <?php else: ?>
                         <?php foreach ($items as $item): ?>
-                            <div class="side-tab-item" data-id="<?php echo esc_attr($item['id']); ?>">
-                                <div class="item-handle">
-                                    <span class="material-icons">drag_handle</span>
+                            <div class="side-tab-item adverto-card-hover" data-id="<?php echo esc_attr($item['id']); ?>" style="display: flex; align-items: center; padding: 12px; margin-bottom: 8px; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; transition: all 0.2s ease;">
+                                <div class="item-handle" style="cursor: move; padding: 8px; color: #bdbdbd;">
+                                    <span class="material-icons">drag_indicator</span>
                                 </div>
-                                <div class="item-preview">
+                                <div class="item-preview" style="flex: 1; display: flex; align-items: center; gap: 16px;">
                                     <?php if (!empty($item['icon'])): ?>
-                                        <img src="<?php echo esc_url($item['icon']); ?>" alt="Icon" class="item-icon">
+                                        <img src="<?php echo esc_url($item['icon']); ?>" alt="Icon" class="item-icon" style="width: 40px; height: 40px; object-fit: contain; border-radius: 4px; background: #f5f5f5;">
                                     <?php else: ?>
-                                        <span class="material-icons item-icon-placeholder">link</span>
+                                        <span class="material-icons item-icon-placeholder" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: #f5f5f5; border-radius: 4px; color: #757575;">link</span>
                                     <?php endif; ?>
                                     <div class="item-info">
-                                        <strong><?php echo esc_html($item['text']); ?></strong>
-                                        <small><?php echo esc_html($item['link']); ?></small>
+                                        <strong style="display: block; font-size: 16px; color: #212121;"><?php echo esc_html($item['text']); ?></strong>
+                                        <small style="color: #757575;"><?php echo esc_html($item['link']); ?></small>
+                                        <?php if(isset($item['target']) && $item['target'] === '_blank'): ?>
+                                            <span class="adverto-chip" style="font-size: 10px; padding: 2px 6px; height: auto;">NEW TAB</span>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
-                                <div class="item-actions">
-                                    <button type="button" class="adverto-btn adverto-btn-small edit-item-btn">
-                                        <span class="material-icons">edit</span>
+                                <div class="item-actions" style="display: flex; gap: 8px;">
+                                    <button type="button" class="adverto-btn w-auto edit-item-btn" style="padding: 8px; min-width: auto; background: transparent; color: #4285f4; border: 1px solid #e0e0e0;" title="<?php _e('Edit', 'adverto-master'); ?>">
+                                        <span class="material-icons" style="margin:0; font-size: 20px;">edit</span>
                                     </button>
-                                    <button type="button" class="adverto-btn adverto-btn-small adverto-btn-danger delete-item-btn">
-                                        <span class="material-icons">delete</span>
+                                    <button type="button" class="adverto-btn w-auto adverto-btn-danger delete-item-btn" style="padding: 8px; min-width: auto; background: transparent; color: #d32f2f; border: 1px solid #e0e0e0;" title="<?php _e('Delete', 'adverto-master'); ?>">
+                                        <span class="material-icons" style="margin:0; font-size: 20px;">delete</span>
                                     </button>
                                 </div>
                             </div>
@@ -610,27 +613,30 @@ jQuery(document).ready(function($) {
         container.empty();
         currentItems.forEach(function(item) {
             const iconHtml = item.icon ? 
-                `<img src="${item.icon}" alt="Icon" class="item-icon">` : 
-                '<span class="material-icons item-icon-placeholder">link</span>';
+                `<img src="${item.icon}" alt="Icon" class="item-icon" style="width: 100%; height: 100%; object-fit: cover;">` : 
+                '<span class="material-icons" style="color: #cbd5e0;">image</span>';
                 
             const itemHtml = $(`
-                <div class="side-tab-item" data-id="${item.id}">
-                    <div class="item-handle">
-                        <span class="material-icons">drag_handle</span>
-                    </div>
-                    <div class="item-preview">
-                        ${iconHtml}
+                <div class="side-tab-item" data-id="${item.id}" 
+                     style="background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; border: 1px solid #e2e8f0; transition: all 0.2s ease;">
+                    <div style="display: flex; align-items: center; gap: 15px; flex: 1;">
+                        <div class="item-handle" style="cursor: grab; color: #a0aec0; padding: 5px;">
+                            <span class="material-icons">drag_indicator</span>
+                        </div>
+                        <div class="item-preview-icon" style="width: 40px; height: 40px; background: #f7fafc; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid #e2e8f0;">
+                            ${iconHtml}
+                        </div>
                         <div class="item-info">
-                            <strong>${item.text}</strong>
-                            <small>${item.link}</small>
+                            <strong style="display: block; font-size: 14px; color: #2d3748; margin-bottom: 2px;">${item.text}</strong>
+                            <small style="color: #718096; font-size: 12px;">${item.link}</small>
                         </div>
                     </div>
-                    <div class="item-actions">
-                        <button type="button" class="adverto-btn adverto-btn-small edit-item-btn">
-                            <span class="material-icons">edit</span>
+                    <div class="item-actions" style="display: flex; gap: 8px;">
+                        <button type="button" class="adverto-btn adverto-btn-small edit-item-btn" style="padding: 6px 10px; background: #ebf4ff; color: #4299e1; border: none; border-radius: 6px; cursor: pointer;">
+                            <span class="material-icons" style="font-size: 18px;">edit</span>
                         </button>
-                        <button type="button" class="adverto-btn adverto-btn-small adverto-btn-danger delete-item-btn">
-                            <span class="material-icons">delete</span>
+                        <button type="button" class="adverto-btn adverto-btn-small adverto-btn-danger delete-item-btn" style="padding: 6px 10px; background: #fff5f5; color: #f56565; border: none; border-radius: 6px; cursor: pointer;">
+                            <span class="material-icons" style="font-size: 18px;">delete</span>
                         </button>
                     </div>
                 </div>
@@ -686,42 +692,94 @@ jQuery(document).ready(function($) {
         const previewItems = previewTab.find('.preview-tab-items');
         
         // Update position
-        previewTab.removeClass('left right').addClass(currentSettings.position || 'right');
+        const position = $('#side-tab-position').val() || currentSettings.position || 'right';
+        previewTab.removeClass('left right').addClass(position);
         
         // Update colors
-        const bgColor = $('#background-color').val() || currentSettings.background_color;
+        const bgColorHex = $('#background-color').val() || currentSettings.background_color;
         const textColor = $('#text-color').val() || currentSettings.text_color;
         const hoverColor = $('#hover-color').val() || currentSettings.hover_color;
         
+        // Convert hex to rgba for glass effect
+        let bgColor = bgColorHex;
+        if (/^#[0-9A-F]{6}$/i.test(bgColorHex)) {
+            const r = parseInt(bgColorHex.substr(1, 2), 16);
+            const g = parseInt(bgColorHex.substr(3, 2), 16);
+            const b = parseInt(bgColorHex.substr(5, 2), 16);
+            bgColor = `rgba(${r}, ${g}, ${b}, 0.85)`;
+        }
+        
         previewTab.css({
             'background-color': bgColor,
-            'color': textColor
+            'color': textColor,
+            'backdrop-filter': 'blur(12px)',
+            '-webkit-backdrop-filter': 'blur(12px)',
+            'box-shadow': '0 8px 32px rgba(0, 0, 0, 0.15)',
+            'border': '1px solid rgba(255, 255, 255, 0.1)'
         });
+        
+        // Update toggle button style
+        const toggleBtn = previewTab.find('.preview-tab-toggle');
+        toggleBtn.css({
+            'background-color': bgColor,
+            'color': textColor,
+            'backdrop-filter': 'blur(12px)',
+            '-webkit-backdrop-filter': 'blur(12px)',
+            'border': '1px solid rgba(255, 255, 255, 0.1)'
+        });
+        
+        if (position === 'right') {
+            previewTab.css('border-radius', '12px 0 0 12px');
+            toggleBtn.css({
+                'left': '-32px',
+                'right': 'auto',
+                'border-radius': '8px 0 0 8px',
+                'border-right': 'none',
+                'border-left': '1px solid rgba(255, 255, 255, 0.1)'
+            });
+        } else {
+            previewTab.css('border-radius', '0 12px 12px 0');
+            toggleBtn.css({
+                'right': '-32px',
+                'left': 'auto',
+                'border-radius': '0 8px 8px 0',
+                'border-left': 'none',
+                'border-right': '1px solid rgba(255, 255, 255, 0.1)'
+            });
+        }
         
         // Update items
         previewItems.empty();
         
         if (currentItems.length === 0) {
-            previewItems.html(`
-                <div class="preview-tab-item">
-                    <span class="preview-icon">📞</span>
-                    <span>Contact</span>
-                </div>
-                <div class="preview-tab-item">
-                    <span class="preview-icon">💬</span>
-                    <span>Chat</span>
-                </div>
-            `);
+           // Default items strictly for visual preview
+           const defaultItems = [
+               { text: 'Contact', icon: '' },
+               { text: 'Chat', icon: '' }
+           ];
+           
+           defaultItems.forEach(item => {
+               previewItems.append(`
+                    <div class="preview-tab-item" style="padding: 12px 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border-bottom: 1px solid rgba(255,255,255,0.05); transition: all 0.2s ease; color: ${textColor};">
+                        <div class="preview-icon-wrapper" style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                             <span class="material-icons" style="font-size: 20px;">${item.text === 'Contact' ? 'call' : 'chat'}</span>
+                        </div>
+                        <span style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.9;">${item.text}</span>
+                    </div>
+               `);
+           });
         } else {
             currentItems.forEach(function(item) {
                 const iconHtml = item.icon ? 
-                    `<img src="${item.icon}" class="preview-icon" alt="${item.text}">` : 
-                    '<span class="preview-icon">🔗</span>';
+                    `<img src="${item.icon}" class="preview-icon" alt="${item.text}" style="width: 100%; height: 100%; object-fit: contain;">` : 
+                    '<span class="material-icons" style="font-size: 20px;">link</span>';
                     
                 previewItems.append(`
-                    <div class="preview-tab-item">
-                        ${iconHtml}
-                        <span>${item.text}</span>
+                    <div class="preview-tab-item" style="padding: 12px 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border-bottom: 1px solid rgba(255,255,255,0.05); transition: all 0.2s ease; color: ${textColor};">
+                        <div class="preview-icon-wrapper" style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                            ${iconHtml}
+                        </div>
+                        <span style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.9;">${item.text}</span>
                     </div>
                 `);
             });
@@ -729,9 +787,11 @@ jQuery(document).ready(function($) {
         
         // Update hover effect
         previewItems.find('.preview-tab-item').on('mouseenter', function() {
-            $(this).css('background-color', hoverColor);
+            $(this).css('background-color', 'rgba(255, 255, 255, 0.15)');
+            $(this).find('img, .material-icons').css('transform', 'scale(1.2)');
         }).on('mouseleave', function() {
             $(this).css('background-color', '');
+            $(this).find('img, .material-icons').css('transform', '');
         });
         
         // Show/hide based on enabled status
