@@ -1,0 +1,9 @@
+<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+  <!-- Letter "A" for Adverto -->
+  <path fill="#a7aaad" d="M10 2L15 18h-2.5L11 14H9l-1.5 4H5L10 2z"/>
+  <path fill="#a7aaad" d="M9.5 12h1l-0.5-2L9.5 12z"/>
+  
+  <!-- Media/Marketing symbol - small arrow/play button -->
+  <circle fill="#4285f4" cx="15.5" cy="6.5" r="2.5"/>
+  <path fill="white" d="M14.5 5.5L16.5 6.5L14.5 7.5z"/>
+</svg>
