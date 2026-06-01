@@ -231,23 +231,15 @@ $items = get_option('adverto_side_tab_items', array());
             $('.color-picker').wpColorPicker();
         }
         
-        // Initialize WordPress media uploader for icons
-        let mediaUploader;
-    
-    $(document).on('click', '.upload-icon-btn', function(e) {
+        // Initialize WordPress media uploader for icons — a fresh frame is created per click
+        $(document).on('click', '.upload-icon-btn', function(e) {
         e.preventDefault();
         
         const button = $(this);
         const urlField = button.siblings('.icon-url');
         
-        // If the media frame already exists, reopen it
-        if (mediaUploader) {
-            mediaUploader.open();
-            return;
-        }
-        
-        // Create the media frame
-        mediaUploader = wp.media({
+        // Always create a fresh frame so each button targets its own field
+        const frame = wp.media({
             title: '<?php _e('Select Icon', 'adverto-master'); ?>',
             button: {
                 text: '<?php _e('Use this icon', 'adverto-master'); ?>'
@@ -259,13 +251,15 @@ $items = get_option('adverto_side_tab_items', array());
         });
         
         // When an image is selected, run a callback
-        mediaUploader.on('select', function() {
-            const attachment = mediaUploader.state().get('selection').first().toJSON();
+        frame.on('select', function() {
+            const attachment = frame.state().get('selection').first().toJSON();
             urlField.val(attachment.url);
+            // Trigger input event to update icon preview
+            urlField.trigger('input');
         });
         
         // Open the modal
-        mediaUploader.open();
+        frame.open();
     });
     
     // Add new item
@@ -462,15 +456,6 @@ $items = get_option('adverto_side_tab_items', array());
                 `);
             }
         }
-    });
-    
-    // Debug click handlers
-    $(document).on('click', '#add-new-item', function() {
-        console.log('Add new item button clicked');
-    });
-    
-    $(document).on('click', '.item-header', function() {
-        console.log('Item header clicked');
     });
     
     }); // End document ready

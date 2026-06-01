@@ -20,6 +20,8 @@ class Adverto_SEO_Generator {
         $loader->add_action('wp_ajax_adverto_generate_seo_content', $this, 'handle_generate_seo_content');
         $loader->add_action('wp_ajax_adverto_save_seo_content', $this, 'handle_save_seo_content');
         $loader->add_action('wp_ajax_adverto_fetch_pages', $this, 'handle_fetch_pages');
+        $loader->add_action('wp_ajax_adverto_export_seo_csv', $this, 'export_seo_csv');
+        $loader->add_action('wp_ajax_adverto_import_seo_csv', $this, 'import_seo_csv');
     }
 
     /**
@@ -131,7 +133,7 @@ class Adverto_SEO_Generator {
                 'Content-Type' => 'application/json',
             ),
             'body' => json_encode(array(
-                'model' => 'gpt-4o',
+                'model' => Adverto_Usage_Tracker::get_selected_model(),
                 'messages' => array(
                     array(
                         'role' => 'user',
@@ -169,6 +171,15 @@ class Adverto_SEO_Generator {
         if (!isset($data['choices'][0]['message']['content'])) {
             error_log('Adverto SEO Generator: Invalid API response structure: ' . print_r($data, true));
             throw new Exception(__('Invalid response from OpenAI API.', 'adverto-master'));
+        }
+
+        // Record token usage for cost tracking.
+        if (isset($data['usage'])) {
+            Adverto_Usage_Tracker::record_usage(
+                'seo',
+                $data['usage']['prompt_tokens']     ?? 0,
+                $data['usage']['completion_tokens'] ?? 0
+            );
         }
 
         $content = $data['choices'][0]['message']['content'];
@@ -246,6 +257,170 @@ class Adverto_SEO_Generator {
         wp_send_json_success(array(
             'message' => __('SEO content saved successfully!', 'adverto-master'),
             'page_id' => $page_id
+        ));
+    }
+
+    /**
+     * Handle AJAX request to export SEO data as a CSV file.
+     *
+     * Accepts an optional array of page_ids via POST; when omitted, exports
+     * all published pages. Returns base64-encoded CSV content so the JS layer
+     * can trigger a browser download without leaving the page.
+     */
+    public function export_seo_csv() {
+        check_ajax_referer('adverto_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(__('Insufficient permissions.', 'adverto-master'));
+            return;
+        }
+
+        // Resolve page IDs to export.
+        if (!empty($_POST['page_ids']) && is_array($_POST['page_ids'])) {
+            $page_ids = array_map('intval', $_POST['page_ids']);
+        } else {
+            $page_ids = get_posts(array(
+                'post_type'      => 'page',
+                'post_status'    => 'publish',
+                'posts_per_page' => -1,
+                'fields'         => 'ids',
+            ));
+        }
+
+        // Build CSV rows.
+        $rows   = array();
+        $rows[] = array('page_id', 'page_title', 'permalink', 'seo_title', 'meta_description');
+
+        foreach ($page_ids as $page_id) {
+            $post = get_post($page_id);
+            if (!$post) {
+                continue;
+            }
+
+            $seo_title        = get_post_meta($page_id, '_adverto_seo_title', true);
+            $meta_description = get_post_meta($page_id, '_adverto_meta_description', true);
+
+            // Prefer Yoast values when available.
+            if (defined('WPSEO_VERSION')) {
+                $yoast_title = get_post_meta($page_id, '_yoast_wpseo_title', true);
+                $yoast_desc  = get_post_meta($page_id, '_yoast_wpseo_metadesc', true);
+                if (!empty($yoast_title))       $seo_title        = $yoast_title;
+                if (!empty($yoast_desc))        $meta_description = $yoast_desc;
+            }
+
+            $rows[] = array(
+                $page_id,
+                $post->post_title,
+                get_permalink($page_id),
+                $seo_title,
+                $meta_description,
+            );
+        }
+
+        // Serialise to CSV string.
+        ob_start();
+        $handle = fopen('php://output', 'w');
+        foreach ($rows as $row) {
+            fputcsv($handle, $row);
+        }
+        fclose($handle);
+        $csv_content = ob_get_clean();
+
+        wp_send_json_success(array(
+            'csv'      => base64_encode($csv_content),
+            'filename' => 'seo-export-' . gmdate('Y-m-d') . '.csv',
+        ));
+    }
+
+    /**
+     * Handle AJAX request to import SEO data from a CSV file.
+     *
+     * Expects the raw CSV text in the POST field 'csv_data'. The first row is
+     * treated as a header and skipped. Column order must be:
+     * page_id, page_title, permalink, seo_title, meta_description
+     *
+     * Returns the number of rows successfully imported.
+     */
+    public function import_seo_csv() {
+        check_ajax_referer('adverto_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(__('Insufficient permissions.', 'adverto-master'));
+            return;
+        }
+
+        $csv_data = isset($_POST['csv_data']) ? wp_unslash($_POST['csv_data']) : '';
+
+        if (empty($csv_data)) {
+            wp_send_json_error(__('No CSV data provided.', 'adverto-master'));
+            return;
+        }
+
+        // Parse CSV from the string.
+        $handle = fopen('php://temp', 'r+');
+        fwrite($handle, $csv_data);
+        rewind($handle);
+
+        $imported = 0;
+        $skipped  = 0;
+        $is_first  = true;
+
+        while (($row = fgetcsv($handle)) !== false) {
+            // Skip the header row.
+            if ($is_first) {
+                $is_first = false;
+                continue;
+            }
+
+            if (count($row) < 5) {
+                $skipped++;
+                continue;
+            }
+
+            $page_id          = intval($row[0]);
+            $seo_title        = sanitize_text_field($row[3]);
+            $meta_description = sanitize_textarea_field($row[4]);
+
+            if (!$page_id || !get_post($page_id)) {
+                $skipped++;
+                continue;
+            }
+
+            if (!empty($seo_title)) {
+                update_post_meta($page_id, '_adverto_seo_title', $seo_title);
+
+                if (defined('WPSEO_VERSION')) {
+                    update_post_meta($page_id, '_yoast_wpseo_title', $seo_title);
+                }
+                if (defined('RANK_MATH_VERSION')) {
+                    update_post_meta($page_id, 'rank_math_title', $seo_title);
+                }
+            }
+
+            if (!empty($meta_description)) {
+                update_post_meta($page_id, '_adverto_meta_description', $meta_description);
+
+                if (defined('WPSEO_VERSION')) {
+                    update_post_meta($page_id, '_yoast_wpseo_metadesc', $meta_description);
+                }
+                if (defined('RANK_MATH_VERSION')) {
+                    update_post_meta($page_id, 'rank_math_description', $meta_description);
+                }
+            }
+
+            $imported++;
+        }
+
+        fclose($handle);
+
+        wp_send_json_success(array(
+            'imported' => $imported,
+            'skipped'  => $skipped,
+            'message'  => sprintf(
+                /* translators: %d: number of rows imported */
+                __('%d SEO rows imported successfully.', 'adverto-master'),
+                $imported
+            ),
         ));
     }
 }

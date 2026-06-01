@@ -76,6 +76,7 @@ class Adverto_Core {
         require_once ADVERTO_MASTER_INCLUDES_DIR . 'class-side-tab.php';
         require_once ADVERTO_MASTER_INCLUDES_DIR . 'class-duplicate-wizard.php';
         require_once ADVERTO_MASTER_INCLUDES_DIR . 'class-llm-generator.php';
+        require_once ADVERTO_MASTER_INCLUDES_DIR . 'class-usage-tracker.php';
 
         $this->loader = new Adverto_Loader();
     }
@@ -116,6 +117,13 @@ class Adverto_Core {
         $side_tab->init_admin_hooks($this->loader);
         $duplicate_wizard->init_admin_hooks($this->loader);
         $llm_generator->init_admin_hooks($this->loader);
+
+        // Usage stats reset
+        $this->loader->add_action('wp_ajax_adverto_reset_usage_stats', $this, 'handle_reset_usage_stats');
+
+        // SEO CSV export / import — delegated to the SEO generator instance
+        $this->loader->add_action('wp_ajax_adverto_export_seo_csv', $seo_generator, 'export_seo_csv');
+        $this->loader->add_action('wp_ajax_adverto_import_seo_csv', $seo_generator, 'import_seo_csv');
     }
 
     /**
@@ -131,6 +139,23 @@ class Adverto_Core {
         // Initialize public-facing functionality for tools that need it
         $side_tab = new Adverto_Side_Tab();
         $side_tab->init_public_hooks($this->loader);
+    }
+
+    /**
+     * Handle AJAX request to reset usage statistics.
+     *
+     * Requires a valid nonce and manage_options capability.
+     */
+    public function handle_reset_usage_stats() {
+        check_ajax_referer( 'adverto_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( __( 'Insufficient permissions.', 'adverto-master' ) );
+            return;
+        }
+
+        Adverto_Usage_Tracker::reset_usage();
+        wp_send_json_success( array( 'message' => __( 'Usage stats reset.', 'adverto-master' ) ) );
     }
 
     /**

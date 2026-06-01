@@ -353,12 +353,12 @@ jQuery(document).ready(function($) {
                     ` : `
                         <div class="result-content">
                             <div class="content-field">
-                                <label>SEO Title (<span class="char-count">${result.content.title ? result.content.title.length : 0}</span> chars)</label>
+                                <label>SEO Title (<span class="char-count ${result.content.title && result.content.title.length > 60 ? 'over-limit' : ''}">${result.content.title ? result.content.title.length : 0}</span>/60 chars)</label>
                                 <input type="text" class="generated-title" value="${result.content.title || ''}" data-index="${index}">
                             </div>
                             
                             <div class="content-field">
-                                <label>Meta Description (<span class="char-count">${result.content.description ? result.content.description.length : 0}</span> chars)</label>
+                                <label>Meta Description (<span class="char-count ${result.content.description && result.content.description.length > 160 ? 'over-limit' : ''}">${result.content.description ? result.content.description.length : 0}</span>/160 chars)</label>
                                 <textarea class="generated-description" rows="2" data-index="${index}">${result.content.description || ''}</textarea>
                             </div>
                             
@@ -388,8 +388,11 @@ jQuery(document).ready(function($) {
                 const field = $(this).hasClass('generated-title') ? 'title' : 'description';
                 generationResults[index].content[field] = $(this).val();
                 
-                // Update character count
-                $(this).siblings('label').find('.char-count').text($(this).val().length);
+                const len = $(this).val().length;
+                const limit = field === 'title' ? 60 : 160;
+                const charSpan = $(this).siblings('label').find('.char-count');
+                charSpan.text(len);
+                charSpan.toggleClass('over-limit', len > limit);
                 
                 // Update preview
                 const previewItem = $(this).closest('.result-item');
@@ -505,11 +508,33 @@ jQuery(document).ready(function($) {
     }
     
     function showNotification(message, type = 'info') {
-        if (type === 'error') {
-            alert('Error: ' + message);
-        } else {
-            alert(message);
+        const icons = { error: 'error', success: 'check_circle', info: 'info', warning: 'warning' };
+        const icon = icons[type] || 'info';
+        
+        if (!$('#adverto-toast-container').length) {
+            $('body').append('<div id="adverto-toast-container"></div>');
         }
+        
+        const toast = $(`
+            <div class="adverto-toast adverto-toast-${type}">
+                <span class="material-icons">${icon}</span>
+                <span class="adverto-toast-msg">${message}</span>
+                <button class="adverto-toast-close" title="Dismiss"><span class="material-icons">close</span></button>
+            </div>
+        `);
+        
+        $('#adverto-toast-container').append(toast);
+        setTimeout(() => toast.addClass('visible'), 10);
+        
+        toast.find('.adverto-toast-close').on('click', function() {
+            toast.removeClass('visible');
+            setTimeout(() => toast.remove(), 300);
+        });
+        
+        setTimeout(() => {
+            toast.removeClass('visible');
+            setTimeout(() => toast.remove(), 300);
+        }, 5000);
     }
 });
 </script>
@@ -673,6 +698,11 @@ jQuery(document).ready(function($) {
 .char-count {
     color: var(--primary-color);
     font-weight: 600;
+}
+
+.char-count.over-limit {
+    color: #f44336;
+    font-weight: 700;
 }
 
 .search-preview {

@@ -131,33 +131,42 @@ class Adverto_Alt_Text_Generator {
     }
 
     /**
-     * Generate alt text using OpenAI API
+     * Generate alt text using OpenAI API.
+     *
+     * The selected model is read from plugin settings. Alt text generation
+     * requires vision support, so a vision-capable model is used as a fallback
+     * when the configured model does not support image input.
      */
     private function generate_alt_text_from_openai($image_url, $api_key, $prompt) {
         if (empty($api_key)) {
             return __('Error: No API key provided.', 'adverto-master');
         }
 
+        // Resolve model — alt text requires vision capability.
+        $selected_model = Adverto_Usage_Tracker::get_selected_model();
+        $model_info     = Adverto_Usage_Tracker::get_model_info($selected_model);
+        $model          = $model_info['vision'] ? $selected_model : 'gpt-4o';
+
         $response = wp_remote_post('https://api.openai.com/v1/chat/completions', array(
             'headers' => array(
                 'Authorization' => 'Bearer ' . $api_key,
-                'Content-Type' => 'application/json',
+                'Content-Type'  => 'application/json',
             ),
             'body' => json_encode(array(
-                'model' => 'gpt-4o',
+                'model'    => $model,
                 'messages' => array(
                     array(
-                        'role' => 'user',
+                        'role'    => 'user',
                         'content' => array(
-                            array('type' => 'text', 'text' => $prompt),
-                            array('type' => 'image_url', 'image_url' => array('url' => $image_url))
-                        )
-                    )
+                            array('type' => 'text',      'text'      => $prompt),
+                            array('type' => 'image_url', 'image_url' => array('url' => $image_url)),
+                        ),
+                    ),
                 ),
-                'max_tokens' => 100,
-                'temperature' => 0.7
+                'max_tokens'  => 100,
+                'temperature' => 0.7,
             )),
-            'timeout' => 30
+            'timeout' => 30,
         ));
 
         if (is_wp_error($response)) {
@@ -166,7 +175,7 @@ class Adverto_Alt_Text_Generator {
         }
 
         $response_code = wp_remote_retrieve_response_code($response);
-        $body = json_decode(wp_remote_retrieve_body($response), true);
+        $body          = json_decode(wp_remote_retrieve_body($response), true);
 
         if ($response_code !== 200 || isset($body['error'])) {
             $error_message = isset($body['error']['message']) ? $body['error']['message'] : __('Unknown error', 'adverto-master');
@@ -174,11 +183,21 @@ class Adverto_Alt_Text_Generator {
             return __('API Error: ', 'adverto-master') . $error_message;
         }
 
-        $generated_text = isset($body['choices'][0]['message']['content']) 
-            ? trim($body['choices'][0]['message']['content']) 
+        // Record token usage for cost tracking.
+        if (isset($body['usage'])) {
+            Adverto_Usage_Tracker::record_usage(
+                'alt-text',
+                $body['usage']['prompt_tokens']     ?? 0,
+                $body['usage']['completion_tokens'] ?? 0,
+                $model
+            );
+        }
+
+        $generated_text = isset($body['choices'][0]['message']['content'])
+            ? trim($body['choices'][0]['message']['content'])
             : __('Failed to generate alt text', 'adverto-master');
 
-        // Clean up the generated text
+        // Clean up the generated text.
         $generated_text = $this->clean_generated_text($generated_text);
 
         return $generated_text;

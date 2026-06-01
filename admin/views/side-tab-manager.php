@@ -23,6 +23,7 @@ error_log('Side Tab Items from DB: ' . print_r($items, true));
         <h1>
             <span class="material-icons">tab</span>
             <?php _e('Side Tab Manager', 'adverto-master'); ?>
+            <span class="powered-by-adverto">Powered by Adverto Media</span>
         </h1>
         <div class="adverto-breadcrumb">
             <a href="<?php echo admin_url('admin.php?page=adverto-master'); ?>"><?php _e('Dashboard', 'adverto-master'); ?></a>

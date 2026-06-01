@@ -913,6 +913,10 @@ class Adverto_LLM_Generator {
      * Clean and filter URLs for processing
      */
     private function clean_and_filter_urls($urls, $site_domain, $options) {
+        // Load user-defined exclusion patterns (one per line, substring match on path).
+        $exclusions    = get_option('adverto_llm_exclude_patterns', '');
+        $exclusion_list = array_filter(array_map('trim', explode("\n", $exclusions)));
+
         $cleaned_urls = array();
         
         foreach ($urls as $url) {
@@ -949,6 +953,21 @@ class Adverto_LLM_Generator {
                 if (strpos($path, $pattern) !== false) {
                     $should_skip = true;
                     break;
+                }
+            }
+
+            // Apply user-defined exclusion patterns (substring match on URL path).
+            if (!$should_skip && !empty($exclusion_list)) {
+                $url_path = parse_url($url, PHP_URL_PATH);
+                $excluded = false;
+                foreach ($exclusion_list as $pattern) {
+                    if (!empty($pattern) && strpos($url_path, $pattern) !== false) {
+                        $excluded = true;
+                        break;
+                    }
+                }
+                if ($excluded) {
+                    $should_skip = true;
                 }
             }
             
@@ -2568,7 +2587,12 @@ List what makes this business trustworthy or competitive. Each point should be 1
     /**
      * Make OpenAI API request
      */
-    private function call_openai_api($prompt, $model = 'gpt-4o-mini', $max_retries = 3) {
+    private function call_openai_api($prompt, $model = null, $max_retries = 3) {
+        // Use the admin-selected model when no specific model is requested.
+        if (null === $model) {
+            $model = Adverto_Usage_Tracker::get_selected_model();
+        }
+
         $api_key = $this->get_openai_api_key();
         
         if (empty($api_key)) {
@@ -2580,15 +2604,15 @@ List what makes this business trustworthy or competitive. Each point should be 1
             'model' => $model,
             'messages' => [
                 [
-                    'role' => 'system',
+                    'role'    => 'system',
                     'content' => 'You are a professional content analyst specialising in creating high-quality, British English website summaries and descriptions. Always respond in British English spelling and terminology.'
                 ],
                 [
-                    'role' => 'user',
+                    'role'    => 'user',
                     'content' => $prompt
                 ]
             ],
-            'max_tokens' => 200,
+            'max_tokens'  => 200,
             'temperature' => 0.7
         ];
         
@@ -2598,9 +2622,9 @@ List what makes this business trustworthy or competitive. Each point should be 1
             $response = wp_remote_post('https://api.openai.com/v1/chat/completions', [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $api_key,
-                    'Content-Type' => 'application/json'
+                    'Content-Type'  => 'application/json'
                 ],
-                'body' => json_encode($data),
+                'body'    => json_encode($data),
                 'timeout' => 45 // Increased timeout for complex requests
             ]);
             
@@ -2617,7 +2641,7 @@ List what makes this business trustworthy or competitive. Each point should be 1
                 return false;
             }
             
-            $body = json_decode(wp_remote_retrieve_body($response), true);
+            $body      = json_decode(wp_remote_retrieve_body($response), true);
             $http_code = wp_remote_retrieve_response_code($response);
             
             // Handle rate limiting (HTTP 429)
@@ -2642,8 +2666,17 @@ List what makes this business trustworthy or competitive. Each point should be 1
                 return false;
             }
             
-            // Success case
+            // Success case — record token usage and return content.
             if (isset($body['choices'][0]['message']['content'])) {
+                if (isset($body['usage'])) {
+                    Adverto_Usage_Tracker::record_usage(
+                        'llm',
+                        $body['usage']['prompt_tokens']     ?? 0,
+                        $body['usage']['completion_tokens'] ?? 0,
+                        $model
+                    );
+                }
+
                 return trim($body['choices'][0]['message']['content']);
             }
             

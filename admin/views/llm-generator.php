@@ -57,7 +57,6 @@ $custom_post_types = get_post_types(array('public' => true, '_builtin' => false)
         <h1>
             <span class="material-icons">auto_awesome</span>
             <?php _e('LLMs.txt Generator', 'adverto-master'); ?>
-            <span class="powered-by-adverto">Powered by Adverto Media</span>
         </h1>
         <div class="adverto-breadcrumb">
             <a href="<?php echo admin_url('admin.php?page=adverto-master'); ?>"><?php _e('Dashboard', 'adverto-master'); ?></a>

@@ -45,6 +45,7 @@ $seo_prompt = get_option('adverto_seo_prompt', 'Generate an SEO-optimised title 
         <h1>
             <span class="material-icons">settings</span>
             <?php _e('Settings', 'adverto-master'); ?>
+            <span class="powered-by-adverto">Powered by Adverto Media</span>
         </h1>
         <div class="adverto-breadcrumb">
             <a href="<?php echo admin_url('admin.php?page=adverto-master'); ?>"><?php _e('Dashboard', 'adverto-master'); ?></a>

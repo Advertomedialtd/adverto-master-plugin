@@ -201,30 +201,48 @@ class Adverto_Side_Tab {
         }
 
         $stats = get_option('adverto_side_tab_stats', array(
-            'total_clicks' => 0,
+            'total_clicks'   => 0,
             'unique_visitors' => 0,
-            'last_click' => null
+            'last_click'     => null,
         ));
 
-        wp_send_json_success($stats);
+        $item_clicks = get_option('adverto_side_tab_item_clicks', array());
+
+        wp_send_json_success(array(
+            'stats'       => $stats,
+            'item_clicks' => $item_clicks,
+        ));
     }
 
     /**
-     * Handle tracking clicks
+     * Handle tracking clicks.
+     *
+     * Updates the global click stats and, when an item_id is provided, also
+     * increments a per-item counter stored in 'adverto_side_tab_item_clicks'.
      */
     public function handle_track_click() {
         check_ajax_referer('adverto_public_nonce', 'nonce');
 
+        // Per-item click counter.
+        $item_id = isset($_POST['item_id']) ? sanitize_key($_POST['item_id']) : '';
+
+        if (!empty($item_id)) {
+            $item_clicks = get_option('adverto_side_tab_item_clicks', array());
+            $item_clicks[$item_id] = isset($item_clicks[$item_id]) ? $item_clicks[$item_id] + 1 : 1;
+            update_option('adverto_side_tab_item_clicks', $item_clicks, false);
+        }
+
+        // Global stats.
         $stats = get_option('adverto_side_tab_stats', array(
-            'total_clicks' => 0,
+            'total_clicks'   => 0,
             'unique_visitors' => 0,
-            'last_click' => null
+            'last_click'     => null,
         ));
 
         $stats['total_clicks']++;
         $stats['last_click'] = current_time('mysql');
 
-        // Track unique visitors using session
+        // Track unique visitors using session.
         if (!isset($_SESSION)) {
             session_start();
         }
@@ -298,6 +316,7 @@ class Adverto_Side_Tab {
                     <?php foreach ($items as $item) : ?>
                         <a href="<?php echo esc_url($item['link']); ?>" 
                            target="<?php echo esc_attr($item['target']); ?>"
+                           data-item-id="<?php echo esc_attr($item['id']); ?>"
                            class="adverto-side-tab-item">
                             <div class="adverto-item-icon">
                                 <?php if (!empty($item['icon'])): ?>
@@ -493,10 +512,12 @@ class Adverto_Side_Tab {
             const links = document.querySelectorAll('.adverto-side-tab-item');
             links.forEach(link => {
                 link.addEventListener('click', function() {
+                    const itemId = this.dataset.itemId || '';
                     if (window.jQuery) {
                         window.jQuery.post('<?php echo admin_url('admin-ajax.php'); ?>', {
-                            action: 'adverto_track_side_tab_click',
-                            nonce: '<?php echo wp_create_nonce('adverto_public_nonce'); ?>'
+                            action:  'adverto_track_side_tab_click',
+                            nonce:   '<?php echo wp_create_nonce('adverto_public_nonce'); ?>',
+                            item_id: itemId
                         });
                     }
                 });

@@ -9,6 +9,7 @@
         <h1>
             <span class="material-icons">content_copy</span>
             <?php _e('Duplicate SEO Wizard', 'adverto-master'); ?>
+            <span class="powered-by-adverto">Powered by Adverto Media</span>
         </h1>
         <div class="adverto-breadcrumb">
             <a href="<?php echo admin_url('admin.php?page=adverto-master'); ?>"><?php _e('Dashboard', 'adverto-master'); ?></a>
@@ -20,10 +21,22 @@
     <div class="adverto-content">
         <!-- Tool Selection Tabs -->
         <div class="adverto-tabs" id="wizard-tabs">
-            <button class="adverto-tab-btn active" data-tab="duplicate"><?php _e('Page Duplicator', 'adverto-master'); ?></button>
-            <button class="adverto-tab-btn" data-tab="multi-location"><?php _e('Multi-Page Location Duplicator', 'adverto-master'); ?></button>
-            <button class="adverto-tab-btn" data-tab="scanner"><?php _e('Duplicate Scanner', 'adverto-master'); ?></button>
-            <button class="adverto-tab-btn" data-tab="find-replace"><?php _e('Find & Replace', 'adverto-master'); ?></button>
+            <button class="adverto-tab-btn active" data-tab="duplicate">
+                <span class="material-icons">content_copy</span>
+                <?php _e('Page Duplicator', 'adverto-master'); ?>
+            </button>
+            <button class="adverto-tab-btn" data-tab="multi-location">
+                <span class="material-icons">add_location_alt</span>
+                <?php _e('Multi-Page Location Duplicator', 'adverto-master'); ?>
+            </button>
+            <button class="adverto-tab-btn" data-tab="scanner">
+                <span class="material-icons">find_in_page</span>
+                <?php _e('Duplicate Scanner', 'adverto-master'); ?>
+            </button>
+            <button class="adverto-tab-btn" data-tab="find-replace">
+                <span class="material-icons">rule</span>
+                <?php _e('Find & Replace', 'adverto-master'); ?>
+            </button>
         </div>
 
         <!-- Page Duplicator Tab -->
@@ -58,26 +71,8 @@
                             <small class="adverto-field-help"><?php _e('How many new pages to create', 'adverto-master'); ?></small>
                         </div>
                         
-                        <div class="replace-fields">
-                            <div class="adverto-form-group">
-                                <label for="replace-1"><?php _e('Replace 1', 'adverto-master'); ?></label>
-                                <input type="text" id="replace-1" class="adverto-input replace-field" placeholder="<?php _e('e.g., Gloucester', 'adverto-master'); ?>">
-                            </div>
-                            
-                            <div class="adverto-form-group">
-                                <label for="replace-2"><?php _e('Replace 2', 'adverto-master'); ?></label>
-                                <input type="text" id="replace-2" class="adverto-input replace-field" placeholder="<?php _e('e.g., Bristol', 'adverto-master'); ?>">
-                            </div>
-                            
-                            <div class="adverto-form-group">
-                                <label for="replace-3"><?php _e('Replace 3', 'adverto-master'); ?></label>
-                                <input type="text" id="replace-3" class="adverto-input replace-field" placeholder="<?php _e('e.g., Bath', 'adverto-master'); ?>">
-                            </div>
-                            
-                            <div class="adverto-form-group">
-                                <label for="replace-4"><?php _e('Replace 4', 'adverto-master'); ?></label>
-                                <input type="text" id="replace-4" class="adverto-input replace-field" placeholder="<?php _e('e.g., Oxford', 'adverto-master'); ?>">
-                            </div>
+                        <div class="replace-fields" id="replace-fields-container">
+                            <!-- Replace fields are generated dynamically based on the count above -->
                         </div>
                         
                         <div class="adverto-checkbox-group">
@@ -518,12 +513,17 @@ jQuery(document).ready(function($) {
     loadPagesForDuplication();
     
     // Form validation for duplication
-    $('#page-to-duplicate, #find-word, #duplicate-count, .replace-field').on('change keyup', function() {
+    $('#page-to-duplicate, #find-word, #duplicate-count').on('change keyup', function() {
         validateDuplicationForm();
     });
     
-    // Number of duplicates change handler
-    $('#duplicate-count').on('change', function() {
+    // Also validate when replace fields change (delegated since they're dynamic)
+    $(document).on('keyup change input', '.replace-field', function() {
+        validateDuplicationForm();
+    });
+    
+    // Number of duplicates change handler — 'input' fires on every keystroke AND spinner click
+    $('#duplicate-count').on('input change', function() {
         const count = parseInt($(this).val()) || 0;
         updateReplaceFields(count);
         validateDuplicationForm();
@@ -757,10 +757,10 @@ jQuery(document).ready(function($) {
                 if (response.success) {
                     results.push({
                         success: true,
-                        page_id: response.data.new_page_id,
+                        page_id: response.data.id,
                         original_page_title: page.title,
-                        new_page_title: response.data.new_page_title,
-                        new_page_url: response.data.new_page_url,
+                        new_page_title: response.data.title,
+                        new_page_url: response.data.url,
                         original_word: findWord,
                         new_word: newLocation
                     });
@@ -890,18 +890,50 @@ jQuery(document).ready(function($) {
     }
     
     function updateReplaceFields(count) {
-        const maxFields = 4;
+        const container = $('#replace-fields-container');
+        const maxCount = Math.min(Math.max(parseInt(count) || 1, 1), 10);
         
-        for (let i = 1; i <= maxFields; i++) {
-            const field = $(`#replace-${i}`).closest('.adverto-form-group');
-            
-            if (i <= count) {
-                field.show();
-            } else {
-                field.hide();
-                $(`#replace-${i}`).val('');
-            }
+        // Save existing values before clearing
+        const existingValues = {};
+        container.find('.replace-field').each(function() {
+            const idx = $(this).data('index');
+            existingValues[idx] = $(this).val();
+        });
+        
+        container.empty();
+        
+        const placeholders = [
+            '<?php _e('e.g., Gloucester', 'adverto-master'); ?>',
+            '<?php _e('e.g., Bristol', 'adverto-master'); ?>',
+            '<?php _e('e.g., Bath', 'adverto-master'); ?>',
+            '<?php _e('e.g., Oxford', 'adverto-master'); ?>',
+            '<?php _e('e.g., Birmingham', 'adverto-master'); ?>',
+            '<?php _e('e.g., Manchester', 'adverto-master'); ?>',
+            '<?php _e('e.g., Leeds', 'adverto-master'); ?>',
+            '<?php _e('e.g., Cardiff', 'adverto-master'); ?>',
+            '<?php _e('e.g., Edinburgh', 'adverto-master'); ?>',
+            '<?php _e('e.g., York', 'adverto-master'); ?>'
+        ];
+        
+        for (let i = 1; i <= maxCount; i++) {
+            const placeholder = placeholders[i - 1] || '<?php _e('e.g., Location name', 'adverto-master'); ?>';
+            const existingVal = existingValues[i] || '';
+            const fieldHtml = `
+                <div class="adverto-form-group replace-field-wrapper">
+                    <label for="replace-${i}">
+                        <span class="replace-field-badge">${i}</span>
+                        <?php _e('Replace', 'adverto-master'); ?> ${i}
+                    </label>
+                    <input type="text" id="replace-${i}" class="adverto-input replace-field"
+                           data-index="${i}"
+                           placeholder="${placeholder}"
+                           value="${existingVal}">
+                </div>
+            `;
+            container.append(fieldHtml);
         }
+        
+        validateDuplicationForm();
     }
     
     function validateDuplicationForm() {
@@ -909,15 +941,15 @@ jQuery(document).ready(function($) {
         const findWord = $('#find-word').val().trim() !== '';
         const count = parseInt($('#duplicate-count').val()) || 0;
         
-        // Check if we have enough replacement words
+        // Check if we have enough replacement words (no cap at 4 anymore — supports up to 10)
         let replacementsFilled = 0;
-        for (let i = 1; i <= count && i <= 4; i++) {
+        for (let i = 1; i <= count; i++) {
             if ($(`#replace-${i}`).val().trim() !== '') {
                 replacementsFilled++;
             }
         }
         
-        const isValid = pageSelected && findWord && count > 0 && replacementsFilled === count;
+        const isValid = pageSelected && findWord && count > 0 && count <= 10 && replacementsFilled === count;
         $('#duplicate-and-replace-btn').prop('disabled', !isValid);
     }
     
@@ -929,9 +961,9 @@ jQuery(document).ready(function($) {
         const copyFeaturedImage = $('#copy-featured-image').is(':checked');
         const copyCustomFields = $('#copy-custom-fields').is(':checked');
         
-        // Collect replacement words
+        // Collect replacement words (supports up to 10)
         const replacements = [];
-        for (let i = 1; i <= count && i <= 4; i++) {
+        for (let i = 1; i <= count; i++) {
             const replaceWord = $(`#replace-${i}`).val().trim();
             if (replaceWord) {
                 replacements.push(replaceWord);
@@ -1091,8 +1123,7 @@ jQuery(document).ready(function($) {
         $('#page-to-duplicate').val('');
         $('#find-word').val('');
         $('#duplicate-count').val('4');
-        $('.replace-field').val('');
-        updateReplaceFields(4);
+        updateReplaceFields(4); // This regenerates fields and clears them
         validateDuplicationForm();
         $('html, body').animate({scrollTop: 0}, 500);
     }
@@ -1410,11 +1441,36 @@ jQuery(document).ready(function($) {
     }
     
     function showNotification(message, type = 'info') {
-        if (type === 'error') {
-            alert('Error: ' + message);
-        } else {
-            alert(message);
+        const icons = { error: 'error', success: 'check_circle', info: 'info', warning: 'warning' };
+        const icon = icons[type] || 'info';
+        
+        if (!$('#adverto-toast-container').length) {
+            $('body').append('<div id="adverto-toast-container"></div>');
         }
+        
+        const toast = $(`
+            <div class="adverto-toast adverto-toast-${type}">
+                <span class="material-icons">${icon}</span>
+                <span class="adverto-toast-msg">${message}</span>
+                <button class="adverto-toast-close" title="Dismiss"><span class="material-icons">close</span></button>
+            </div>
+        `);
+        
+        $('#adverto-toast-container').append(toast);
+        
+        // Animate in
+        setTimeout(() => toast.addClass('visible'), 10);
+        
+        toast.find('.adverto-toast-close').on('click', function() {
+            toast.removeClass('visible');
+            setTimeout(() => toast.remove(), 300);
+        });
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            toast.removeClass('visible');
+            setTimeout(() => toast.remove(), 300);
+        }, 5000);
     }
 });
 </script>
@@ -1590,11 +1646,109 @@ jQuery(document).ready(function($) {
 }
 
 /* Duplication Form Styles */
-.duplicate-form .replace-fields {
+#replace-fields-container {
     display: grid;
-    gap: 16px;
+    gap: 12px;
     margin: 24px 0;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
 }
+
+.replace-field-wrapper label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+    font-size: 14px;
+}
+
+.replace-field-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+/* Toast Notification System */
+#adverto-toast-container {
+    position: fixed;
+    top: 40px;
+    right: 20px;
+    z-index: 99999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.adverto-toast {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    font-size: 14px;
+    font-weight: 500;
+    max-width: 380px;
+    min-width: 240px;
+    pointer-events: all;
+    opacity: 0;
+    transform: translateX(30px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: #ffffff;
+    border-left: 4px solid #4285f4;
+    color: #212121;
+}
+
+.adverto-toast.visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.adverto-toast .material-icons:first-child {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.adverto-toast-msg {
+    flex: 1;
+}
+
+.adverto-toast-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+    flex-shrink: 0;
+}
+
+.adverto-toast-close:hover { opacity: 1; }
+.adverto-toast-close .material-icons { font-size: 16px; }
+
+.adverto-toast-success { border-left-color: #4caf50; }
+.adverto-toast-success .material-icons:first-child { color: #4caf50; }
+
+.adverto-toast-error { border-left-color: #f44336; }
+.adverto-toast-error .material-icons:first-child { color: #f44336; }
+
+.adverto-toast-warning { border-left-color: #ff9800; }
+.adverto-toast-warning .material-icons:first-child { color: #ff9800; }
+
+.adverto-toast-info { border-left-color: #4285f4; }
+.adverto-toast-info .material-icons:first-child { color: #4285f4; }
 
 .progress-bar {
     width: 100%;
