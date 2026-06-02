@@ -67,7 +67,7 @@
                         
                         <div class="adverto-form-group">
                             <label for="duplicate-count"><?php _e('Number of Duplicates', 'adverto-master'); ?></label>
-                            <input type="number" id="duplicate-count" class="adverto-input" value="4" min="1" max="10">
+                            <input type="number" id="duplicate-count" class="adverto-input" value="4" min="1">
                             <small class="adverto-field-help"><?php _e('How many new pages to create', 'adverto-master'); ?></small>
                         </div>
                         
@@ -891,7 +891,7 @@ jQuery(document).ready(function($) {
     
     function updateReplaceFields(count) {
         const container = $('#replace-fields-container');
-        const maxCount = Math.min(Math.max(parseInt(count) || 1, 1), 10);
+        const maxCount = Math.max(parseInt(count) || 1, 1);
         
         // Save existing values before clearing
         const existingValues = {};
@@ -941,7 +941,7 @@ jQuery(document).ready(function($) {
         const findWord = $('#find-word').val().trim() !== '';
         const count = parseInt($('#duplicate-count').val()) || 0;
         
-        // Check if we have enough replacement words (no cap at 4 anymore — supports up to 10)
+        // Check if we have enough replacement words
         let replacementsFilled = 0;
         for (let i = 1; i <= count; i++) {
             if ($(`#replace-${i}`).val().trim() !== '') {
@@ -949,7 +949,7 @@ jQuery(document).ready(function($) {
             }
         }
         
-        const isValid = pageSelected && findWord && count > 0 && count <= 10 && replacementsFilled === count;
+        const isValid = pageSelected && findWord && count > 0 && replacementsFilled === count;
         $('#duplicate-and-replace-btn').prop('disabled', !isValid);
     }
     
@@ -961,7 +961,7 @@ jQuery(document).ready(function($) {
         const copyFeaturedImage = $('#copy-featured-image').is(':checked');
         const copyCustomFields = $('#copy-custom-fields').is(':checked');
         
-        // Collect replacement words (supports up to 10)
+        // Collect replacement words
         const replacements = [];
         for (let i = 1; i <= count; i++) {
             const replaceWord = $(`#replace-${i}`).val().trim();

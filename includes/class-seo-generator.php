@@ -112,7 +112,12 @@ class Adverto_SEO_Generator {
         $page_title = $page->post_title;
         $page_excerpt = $page->post_excerpt;
         
-        $prompt = "Analyse this WordPress page and generate SEO-optimised title and meta description:\n\n";
+        $custom_prompt = get_option(
+            'adverto_seo_prompt',
+            'Generate an SEO-optimised title (up to 60 characters) and a meta description (up to 160 characters) for this page based on its content. Ensure both a title and a description are provided.'
+        );
+
+        $prompt = $custom_prompt . "\n\n";
         $prompt .= "Page Title: {$page_title}\n";
         $prompt .= "Page Content: " . substr($page_content, 0, 1500) . "\n";
         if (!empty($page_excerpt)) {

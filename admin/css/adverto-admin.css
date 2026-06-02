@@ -135,7 +135,6 @@
 .adverto-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-left: 3px solid var(--accent);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm);
 }
@@ -194,7 +193,6 @@
 .adverto-stat-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-left: 3px solid var(--accent);
     border-radius: var(--radius-lg);
     padding: 20px;
     box-shadow: var(--shadow-sm);
